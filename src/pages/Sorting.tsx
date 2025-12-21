@@ -1,3 +1,3 @@
-export default function Sorting() {
-  return <main className="page"><h2>Sorting</h2></main>;
-}
+import SortingPage from "../sections/Sorting/SortingPage";
+export default SortingPage;
+

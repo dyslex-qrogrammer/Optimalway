@@ -1,0 +1,116 @@
+import React, { useEffect, useRef, useState } from "react";
+import Bars from "./Bars";
+import EditorRow from "./EditorRow";
+import { bubbleSort } from "./drivers/bubble";
+import type { SortStep } from "./drivers/types";
+
+function makeArray(n = 5, max = 40) {
+  return Array.from({ length: n }, () => Math.floor(Math.random() * max) + 1);
+}
+
+export default function SortingPage() {
+  const [values, setValues] = useState<number[]>(() => makeArray(5));
+  const genRef = useRef<Generator<SortStep, SortStep[], void> | null>(null);
+  const [step, setStep] = useState<SortStep | null>(null);
+
+  const [speed, setSpeed] = useState(150);
+  const [playing, setPlaying] = useState(false);
+  const [undoStack, setUndoStack] = useState<number[][]>([]);
+
+  useEffect(() => {
+    genRef.current = bubbleSort(values);
+    setStep(null);
+  }, [values]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => {
+      const g = genRef.current;
+      if (!g) return;
+      const r = g.next();
+      if (r.done) { setPlaying(false); return; }
+      const s = r.value as SortStep;
+      setStep(s);
+      setUndoStack(st => [...st, s.array.slice()]);
+    }, speed);
+    return () => clearInterval(id);
+  }, [playing, speed]);
+
+  const onEdit = (index: number, value: number) => {
+    setValues(prev => {
+      const next = prev.slice();
+      next[index] = Number.isFinite(value) ? value : 0;
+      return next;
+    });
+  };
+
+  const onAdd = () => setValues(prev => [...prev, Math.floor(Math.random() * 40) + 1]);
+
+  const onSortNext = () => {
+    const g = genRef.current; if (!g) return;
+    const r = g.next();
+    if (!r.done) {
+      const s = r.value as SortStep;
+      setStep(s);
+      setUndoStack(stack => [...stack, s.array.slice()]);
+    }
+  };
+
+  const onSortAll = () => setPlaying(true);
+  const onPause = () => setPlaying(false);
+
+  const onUndo = () => {
+    setPlaying(false);
+    setUndoStack(stack => {
+      if (stack.length === 0) return stack;
+      const nextStack = stack.slice(0, -1);
+      const last = stack[stack.length - 1];
+      setValues(last.slice());
+      setStep(null);
+      return nextStack;
+    });
+  };
+
+  const onGenerate = () => {
+    setPlaying(false);
+    setUndoStack([]);
+    setValues(makeArray(5));
+  };
+
+  const shown = step?.array ?? values;
+
+  return (
+    <main className="page">
+      <h2>Sorting</h2>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+        <button onClick={onGenerate}>Random 5</button>
+        <button onClick={onAdd}>+ Add bar</button>
+
+        <button onClick={onSortNext}>Sort Next</button>
+        {!playing ? (
+          <button onClick={onSortAll}>Sort All (Play)</button>
+        ) : (
+          <button onClick={onPause}>Pause</button>
+        )}
+        <button onClick={onUndo} disabled={undoStack.length === 0}>Undo</button>
+
+        <label> Speed (ms):
+          <input type="range" min={30} max={400} step={10}
+                 value={speed} onChange={e => setSpeed(Number(e.target.value))} />
+          <span style={{ marginLeft: 6 }}>{speed}</span>
+        </label>
+
+        <span>Comparisons: {step?.comparisons ?? 0}</span>
+        <span>Swaps: {step?.swaps ?? 0}</span>
+      </div>
+
+      <Bars values={shown} active={{ i: step?.i ?? -1, j: step?.j ?? -1 }} />
+      <EditorRow values={values} onChange={onEdit} />
+
+      <p style={{ color: "#a4b0cf" }}>
+        Edit numbers, add bars, then Sort Next / Sort All. Undo steps back one snapshot.
+      </p>
+    </main>
+  );
+}
