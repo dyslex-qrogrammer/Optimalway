@@ -7,23 +7,44 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-const graphFactory = () => createSampleGraph();
-
 const algorithmOptions: { key: TraversalAlgorithm; label: string }[] = [
   { key: "bfs", label: "Breadth-First Search" },
   { key: "dfs", label: "Depth-First Search" },
 ];
 
 export default function GraphTraversalVisualizer() {
-  const [graph, setGraph] = useState<GraphData>(graphFactory);
+  // NEW: node count control
+  const [nodeCount, setNodeCount] = useState<number>(8);
+
+  // graph state
+  const [graph, setGraph] = useState<GraphData>(() => createSampleGraph(8));
+
+  // traversal settings
   const [algorithm, setAlgorithm] = useState<TraversalAlgorithm>("bfs");
   const [startNode, setStartNode] = useState<number>(0);
   const [speed, setSpeed] = useState<number>(700);
+
+  // playback state
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
 
   const cancelRef = useRef(false);
+
+  // NEW: regenerate graph whenever nodeCount changes
+  useEffect(() => {
+    cancelRef.current = true;
+    setIsRunning(false);
+
+    const next = createSampleGraph(nodeCount);
+    setGraph(next);
+    setStartNode(next.nodes[0]?.id ?? 0);
+    setCurrentStepIndex(0);
+    setIsFinished(false);
+
+    // allow running again
+    setTimeout(() => (cancelRef.current = false), 0);
+  }, [nodeCount]);
 
   const steps = useMemo<TraversalStep[]>(() => {
     return algorithm === "bfs"
@@ -64,16 +85,20 @@ export default function GraphTraversalVisualizer() {
     setIsRunning(false);
     setCurrentStepIndex(0);
     setIsFinished(false);
+    setTimeout(() => (cancelRef.current = false), 0);
   }
 
   function regenerateGraph() {
     cancelRef.current = true;
     setIsRunning(false);
-    const next = graphFactory();
+
+    const next = createSampleGraph(nodeCount);
     setGraph(next);
     setStartNode(next.nodes[0]?.id ?? 0);
     setCurrentStepIndex(0);
     setIsFinished(false);
+
+    setTimeout(() => (cancelRef.current = false), 0);
   }
 
   function toggleRun() {
@@ -82,7 +107,6 @@ export default function GraphTraversalVisualizer() {
       setTimeout(() => setIsRunning(true), 0);
       return;
     }
-
     setIsRunning((prev) => !prev);
   }
 
@@ -108,7 +132,7 @@ export default function GraphTraversalVisualizer() {
   return (
     <section className="space-y-6 rounded-2xl border p-6 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Algorithm</span>
             <select
@@ -145,6 +169,19 @@ export default function GraphTraversalVisualizer() {
             </select>
           </label>
 
+          {/* NEW: Node count slider */}
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium">Nodes: {nodeCount}</span>
+            <input
+              type="range"
+              min={4}
+              max={25}
+              step={1}
+              value={nodeCount}
+              onChange={(e) => setNodeCount(Number(e.target.value))}
+            />
+          </label>
+
           <label className="flex flex-col gap-2">
             <span className="text-sm font-medium">Speed: {speed} ms</span>
             <input
@@ -170,6 +207,7 @@ export default function GraphTraversalVisualizer() {
                 cancelRef.current = true;
                 setIsRunning(false);
                 setCurrentStepIndex(Number(e.target.value));
+                setTimeout(() => (cancelRef.current = false), 0);
               }}
             />
           </label>
@@ -197,6 +235,12 @@ export default function GraphTraversalVisualizer() {
             Regenerate
           </button>
         </div>
+      </div>
+
+      {/* NEW: Show counts */}
+      <div className="flex flex-wrap gap-4 text-sm opacity-80">
+        <span><strong>Nodes:</strong> {graph.nodes.length}</span>
+        <span><strong>Edges:</strong> {graph.edges.length}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm">
@@ -259,7 +303,9 @@ export default function GraphTraversalVisualizer() {
                   x={node.x}
                   y={node.y + 6}
                   textAnchor="middle"
-                  className="fill-white text-sm font-bold"
+                  fill="white"
+                  fontSize="16"
+		  fontWeight="700"
                 >
                   {node.id}
                 </text>
@@ -311,9 +357,7 @@ export default function GraphTraversalVisualizer() {
 
       <div className="rounded-2xl border p-4 text-sm leading-6">
         <strong className="mb-2 block">
-          {algorithm === "bfs"
-            ? "Breadth-First Search"
-            : "Depth-First Search"}
+          {algorithm === "bfs" ? "Breadth-First Search" : "Depth-First Search"}
         </strong>
 
         {algorithm === "bfs" ? (

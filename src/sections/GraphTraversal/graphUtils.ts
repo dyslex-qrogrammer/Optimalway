@@ -1,29 +1,36 @@
 import { GraphData, GraphEdge, GraphNode } from "./types";
 
-export function createSampleGraph(): GraphData {
-  const nodes: GraphNode[] = [
-    { id: 0, x: 120, y: 80 },
-    { id: 1, x: 300, y: 70 },
-    { id: 2, x: 480, y: 120 },
-    { id: 3, x: 170, y: 240 },
-    { id: 4, x: 350, y: 220 },
-    { id: 5, x: 560, y: 260 },
-    { id: 6, x: 240, y: 380 },
-    { id: 7, x: 450, y: 390 },
-  ];
+export function createSampleGraph(nodeCount: number = 8): GraphData {
+  // 1) Make nodes arranged in a circle so they don't overlap much
+  const centerX = 350;
+  const centerY = 235;
+  const radius = 170;
 
-  const edges: GraphEdge[] = [
-    { source: 0, target: 1 },
-    { source: 0, target: 3 },
-    { source: 1, target: 2 },
-    { source: 1, target: 4 },
-    { source: 2, target: 5 },
-    { source: 3, target: 4 },
-    { source: 3, target: 6 },
-    { source: 4, target: 5 },
-    { source: 4, target: 7 },
-    { source: 6, target: 7 },
-  ];
+  const nodes: GraphNode[] = Array.from({ length: nodeCount }, (_, id) => {
+    const angle = (2 * Math.PI * id) / nodeCount;
+    return {
+      id,
+      x: Math.round(centerX + radius * Math.cos(angle)),
+      y: Math.round(centerY + radius * Math.sin(angle)),
+    };
+  });
+
+  // 2) Build edges:
+  // - connect i -> i+1 (cycle) so graph is always connected
+  // - add extra "chord" edges to make traversal interesting
+  const edges: GraphEdge[] = [];
+
+  // cycle edges
+  for (let i = 0; i < nodeCount; i++) {
+    edges.push({ source: i, target: (i + 1) % nodeCount });
+  }
+
+  // extra edges (chords)
+  const jump = Math.max(2, Math.floor(nodeCount / 3));
+  for (let i = 0; i < nodeCount; i++) {
+    const j = (i + jump) % nodeCount;
+    if (i !== j) edges.push({ source: i, target: j });
+  }
 
   return {
     nodes,

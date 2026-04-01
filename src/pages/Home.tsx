@@ -10,8 +10,11 @@ export default function Home() {
         <p>One problem, many solvers — and when each is best.</p>
       </header>
 
+      {/* 👇 THIS is where the section goes: inside return(), under the header */}
       <section className="grid">
-        {TILES.map(t => <TileCard key={t.id} {...t} />)}
+        {TILES.map((t) => (
+          <TileCard key={t.id} {...t} />
+        ))}
       </section>
     </div>
   );
